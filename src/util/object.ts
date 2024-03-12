@@ -28,3 +28,13 @@ export function pick<T extends AnyRecord, K extends keyof T>(
 
     return result;
 }
+
+export function merge<T extends AnyRecord, S extends AnyRecord>(
+    objectA: T,
+    objectB: S
+): T & S {
+    return {
+        ...structuredClone(objectA),
+        ...structuredClone(objectB)
+    };
+}

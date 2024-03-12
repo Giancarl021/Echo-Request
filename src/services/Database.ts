@@ -2,8 +2,7 @@ import SQLite3 from 'better-sqlite3';
 import constants from '../util/constants.js';
 import locate from '../util/locate.js';
 import Logger from './Logger.js';
-import { capitalize } from '../util/string.js';
-import { pick } from '../util/object.js';
+import { pick, merge } from '../util/object.js';
 
 import type RequestInfo from '../interaces/RequestInfo.js';
 import type {
@@ -33,10 +32,12 @@ export default function Database(autoMigration: boolean = false) {
     const saveRequest = sql.transaction((request: RequestInfo) => {
         const { id: requestId } = sql
             .prepare<FlatRequestInfo>(
-                'INSERT INTO Request (method, path, body) VALUES (@method, @path, @body) RETURNING id'
+                'INSERT INTO Request (method, path, body, createdAt) VALUES (@method, @path, @body, @createdAt) RETURNING id'
             )
             .get(
-                pick(request, ['method', 'path', 'body'])
+                merge(pick(request, ['method', 'path', 'body']), {
+                    createdAt: Date.now()
+                })
             ) as RequestInfoWithId;
 
         each('query', request.query);
@@ -70,13 +71,13 @@ export default function Database(autoMigration: boolean = false) {
     function migrate() {
         logger.debug('Migrating database...');
         sql.exec(
-            `CREATE TABLE IF NOT EXISTS Request (id INT PRIMARY KEY, method TEXT, path TEXT, body BLOB)`
+            `CREATE TABLE IF NOT EXISTS Request (id INTEGER PRIMARY KEY AUTOINCREMENT, method TEXT, path TEXT, createdAt INTEGER, body BLOB)`
         );
         sql.exec(
-            `CREATE TABLE IF NOT EXISTS RequestQuery (id INT PRIMARY KEY, key TEXT, value TEXT, requestId INT, FOREIGN KEY (requestId) REFERENCES Request(id))`
+            `CREATE TABLE IF NOT EXISTS RequestQuery (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT, value TEXT, requestId INT, FOREIGN KEY (requestId) REFERENCES Request(id))`
         );
         sql.exec(`
-            CREATE TABLE IF NOT EXISTS RequestHeader (id INT PRIMARY KEY, key TEXT, value TEXT, requestId INT, FOREIGN KEY (requestId) REFERENCES Request(id))`);
+            CREATE TABLE IF NOT EXISTS RequestHeader (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT, value TEXT, requestId INT, FOREIGN KEY (requestId) REFERENCES Request(id))`);
 
         logger.debug('Database migrated');
     }
